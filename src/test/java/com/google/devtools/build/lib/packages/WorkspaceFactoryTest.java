@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.packages;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.devtools.build.lib.cmdline.RepositoryName;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -122,45 +123,44 @@ public class WorkspaceFactoryTest {
 
   @Test
   public void testWorkspaceMappings() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "workspace(name = 'bar')",
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = {'@x' : '@y'},",
-        ")");
+    WorkspaceFactoryTestHelper helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = {'@x' : '@y'},",
+            ")");
     assertMapping(helper, "@foo", "@x", "@y");
-    assertMapping(helper, "@foo", "@bar", "@");
   }
-  
+
   @Test
   public void testMultipleRepositoriesWithMappings() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = {'@x' : '@y'},",
-        ")",
-        "local_repository(",
-        "    name = 'bar',",
-        "    path = '/bar',",
-        "    repo_mapping = {'@a' : '@b'},",
-        ")");
+    WorkspaceFactoryTestHelper helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = {'@x' : '@y'},",
+            ")",
+            "local_repository(",
+            "    name = 'bar',",
+            "    path = '/bar',",
+            "    repo_mapping = {'@a' : '@b'},",
+            ")");
     assertMapping(helper, "@foo", "@x", "@y");
     assertMapping(helper, "@bar", "@a", "@b");
   }
 
   @Test
   public void testMultipleMappings() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = {'@a' : '@b', '@c' : '@d', '@e' : '@f'},",
-        ")");
+
+    WorkspaceFactoryTestHelper helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = {'@a' : '@b', '@c' : '@d', '@e' : '@f'},",
+            ")");
     assertMapping(helper, "@foo", "@a", "@b");
     assertMapping(helper, "@foo", "@c", "@d");
     assertMapping(helper, "@foo", "@e", "@f");
@@ -168,62 +168,37 @@ public class WorkspaceFactoryTest {
 
   @Test
   public void testEmptyMappings() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = {},",
-        ")");
+    WorkspaceFactoryTestHelper helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = {},",
+            ")");
     assertThat(helper.getPackage().getRepositoryMapping("@foo")).isEmpty();
   }
 
   @Test
   public void testMappingsNotAMap() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = 1",
-        ")");
+    WorkspaceFactoryTestHelper helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = 1",
+            ")");
     assertThat(helper.getParserError())
         .contains("Invalid value for 'repo_mapping': '1'. Value must be a map.");
 
-    helper.parse(
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = 'hello'",
-        ")");
+    helper =
+        parse(
+            "local_repository(",
+            "    name = 'foo',",
+            "    path = '/foo',",
+            "    repo_mapping = 'hello'",
+            ")");
     assertThat(helper.getParserError())
         .contains("Invalid value for 'repo_mapping': 'hello'. Value must be a map.");
-  }
-
-  @Test
-  public void testImplicitMainRepoRename() throws Exception {
-    helper.parse("workspace(name = 'foo')");
-    assertMapping(helper, "@", "@foo", "@");
-  }
-
-  @Test
-  public void testEmptyRepositoryHasEmptyMap() throws Exception {
-    helper.parse("");
-    assertThat(helper.getPackage().getRepositoryMapping("@")).isEmpty();
-  }
-
-  @Test
-  public void testOverrideImplicitMainRepoRename() throws Exception {
-    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
-    helper.parse(
-        "workspace(name = 'bar')",
-        "local_repository(",
-        "    name = 'foo',",
-        "    path = '/foo',",
-        "    repo_mapping = {'@x' : '@y', '@bar' : '@newname'},",
-        ")");
-    assertMapping(helper, "@foo", "@x", "@y");
-    assertMapping(helper, "@foo", "@bar", "@newname");
   }
 
   private void assertMapping(
@@ -233,6 +208,10 @@ public class WorkspaceFactoryTest {
     RepositoryName globalRepoName = RepositoryName.create(global);
     assertThat(helper.getPackage().getRepositoryMapping(repo))
         .containsEntry(localRepoName, globalRepoName);
+  }
+
+  private WorkspaceFactoryTestHelper parse(String... args) {
+    return new WorkspaceFactoryTestHelper(args);
   }
 
 }

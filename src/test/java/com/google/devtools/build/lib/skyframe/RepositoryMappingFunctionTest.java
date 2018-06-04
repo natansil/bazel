@@ -23,7 +23,6 @@ import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
-import com.google.devtools.build.lib.testutil.TestConstants;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Root;
@@ -49,7 +48,6 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
 
   @Test
   public void testSimpleMapping() throws Exception {
-    setSkylarkSemanticsOptions("--experimental_enable_repo_mapping");
     scratch.overwriteFile(
         "WORKSPACE",
         "workspace(name = 'good')",
@@ -67,14 +65,11 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
         .hasEntryThat(skyKey)
         .isEqualTo(
             RepositoryMappingValue.withMapping(
-                ImmutableMap.of(
-                    RepositoryName.create("@good"), RepositoryName.MAIN,
-                    RepositoryName.create("@a"), RepositoryName.create("@b"))));
+                ImmutableMap.of(RepositoryName.create("@a"), RepositoryName.create("@b"))));
   }
 
   @Test
   public void testMultipleRepositoriesWithMapping() throws Exception {
-    setSkylarkSemanticsOptions("--experimental_enable_repo_mapping");
     scratch.overwriteFile(
         "WORKSPACE",
         "workspace(name = 'good')",
@@ -97,21 +92,16 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
         .hasEntryThat(skyKey1)
         .isEqualTo(
             RepositoryMappingValue.withMapping(
-                ImmutableMap.of(
-                    RepositoryName.create("@good"), RepositoryName.MAIN,
-                    RepositoryName.create("@a"), RepositoryName.create("@b"))));
+                ImmutableMap.of(RepositoryName.create("@a"), RepositoryName.create("@b"))));
     assertThatEvaluationResult(eval(skyKey2))
         .hasEntryThat(skyKey2)
         .isEqualTo(
             RepositoryMappingValue.withMapping(
-                ImmutableMap.of(
-                    RepositoryName.create("@good"), RepositoryName.MAIN,
-                    RepositoryName.create("@x"), RepositoryName.create("@y"))));
+                ImmutableMap.of(RepositoryName.create("@x"), RepositoryName.create("@y"))));
   }
 
   @Test
   public void testRepositoryWithMultipleMappings() throws Exception {
-    setSkylarkSemanticsOptions("--experimental_enable_repo_mapping");
     scratch.overwriteFile(
         "WORKSPACE",
         "workspace(name = 'good')",
@@ -128,14 +118,12 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
         .isEqualTo(
             RepositoryMappingValue.withMapping(
                 ImmutableMap.of(
-                    RepositoryName.create("@good"), RepositoryName.MAIN,
                     RepositoryName.create("@a"), RepositoryName.create("@b"),
                     RepositoryName.create("@x"), RepositoryName.create("@y"))));
   }
 
   @Test
   public void testErrorWithMapping() throws Exception {
-    setSkylarkSemanticsOptions("--experimental_enable_repo_mapping");
     reporter.removeHandler(failFastHandler);
     scratch.overwriteFile(
         "WORKSPACE",
@@ -156,10 +144,10 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
   }
 
   @Test
-  public void testDefaultMainRepoNameInMapping() throws Exception {
-    setSkylarkSemanticsOptions("--experimental_enable_repo_mapping");
+  public void testEmptyMapping() throws Exception {
     scratch.overwriteFile(
         "WORKSPACE",
+        "workspace(name = 'good')",
         "local_repository(",
         "    name = 'a_remote_repo',",
         "    path = '/a_remote_repo',",
@@ -172,13 +160,11 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
         .hasEntryThat(skyKey)
         .isEqualTo(
             RepositoryMappingValue.withMapping(
-                ImmutableMap.of(
-                    RepositoryName.createFromValidStrippedName(TestConstants.WORKSPACE_NAME),
-                    RepositoryName.MAIN)));
+                ImmutableMap.of()));
   }
 
   @Test
-  public void testExplicitMainRepoNameInMapping() throws Exception {
+  public void testNoMappings() throws Exception {
     scratch.overwriteFile(
         "WORKSPACE",
         "workspace(name = 'good')",
@@ -192,8 +178,7 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
     assertThatEvaluationResult(eval(skyKey))
         .hasEntryThat(skyKey)
         .isEqualTo(
-            RepositoryMappingValue.withMapping(
-                ImmutableMap.of(RepositoryName.create("@good"), RepositoryName.MAIN)));
+            RepositoryMappingValue.withMapping(ImmutableMap.of()));
   }
 
   @Test
