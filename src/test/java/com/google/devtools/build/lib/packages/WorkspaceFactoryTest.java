@@ -120,8 +120,119 @@ public class WorkspaceFactoryTest {
         .containsExactly("//toolchain:tc1", "//toolchain:tc2", "//toolchain/...");
   }
 
-  private WorkspaceFactoryTestHelper parse(String... args) {
-    return new WorkspaceFactoryTestHelper(args);
+  @Test
+  public void testWorkspaceMappings() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "workspace(name = 'bar')",
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = {'@x' : '@y'},",
+        ")");
+    assertMapping(helper, "@foo", "@x", "@y");
+    assertMapping(helper, "@foo", "@bar", "@");
+  }
+  
+  @Test
+  public void testMultipleRepositoriesWithMappings() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = {'@x' : '@y'},",
+        ")",
+        "local_repository(",
+        "    name = 'bar',",
+        "    path = '/bar',",
+        "    repo_mapping = {'@a' : '@b'},",
+        ")");
+    assertMapping(helper, "@foo", "@x", "@y");
+    assertMapping(helper, "@bar", "@a", "@b");
+  }
+
+  @Test
+  public void testMultipleMappings() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = {'@a' : '@b', '@c' : '@d', '@e' : '@f'},",
+        ")");
+    assertMapping(helper, "@foo", "@a", "@b");
+    assertMapping(helper, "@foo", "@c", "@d");
+    assertMapping(helper, "@foo", "@e", "@f");
+  }
+
+  @Test
+  public void testEmptyMappings() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = {},",
+        ")");
+    assertThat(helper.getPackage().getRepositoryMapping("@foo")).isEmpty();
+  }
+
+  @Test
+  public void testMappingsNotAMap() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = 1",
+        ")");
+    assertThat(helper.getParserError())
+        .contains("Invalid value for 'repo_mapping': '1'. Value must be a map.");
+
+    helper.parse(
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = 'hello'",
+        ")");
+    assertThat(helper.getParserError())
+        .contains("Invalid value for 'repo_mapping': 'hello'. Value must be a map.");
+  }
+
+  @Test
+  public void testImplicitMainRepoRename() throws Exception {
+    helper.parse("workspace(name = 'foo')");
+    assertMapping(helper, "@", "@foo", "@");
+  }
+
+  @Test
+  public void testEmptyRepositoryHasEmptyMap() throws Exception {
+    helper.parse("");
+    assertThat(helper.getPackage().getRepositoryMapping("@")).isEmpty();
+  }
+
+  @Test
+  public void testOverrideImplicitMainRepoRename() throws Exception {
+    helper.setSkylarkSemantics("--experimental_enable_repo_mapping");
+    helper.parse(
+        "workspace(name = 'bar')",
+        "local_repository(",
+        "    name = 'foo',",
+        "    path = '/foo',",
+        "    repo_mapping = {'@x' : '@y', '@bar' : '@newname'},",
+        ")");
+    assertMapping(helper, "@foo", "@x", "@y");
+    assertMapping(helper, "@foo", "@bar", "@newname");
+  }
+
+  private void assertMapping(
+      WorkspaceFactoryTestHelper helper, String repo, String local, String global)
+      throws Exception {
+    RepositoryName localRepoName = RepositoryName.create(local);
+    RepositoryName globalRepoName = RepositoryName.create(global);
+    assertThat(helper.getPackage().getRepositoryMapping(repo))
+        .containsEntry(localRepoName, globalRepoName);
   }
 
 }
